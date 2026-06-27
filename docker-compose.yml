@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16
@@ -12,6 +10,24 @@ services:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
+
+  order-service:
+    build:
+      context: ./services/order-service
+    container_name: ai-incident-order-service
+    ports:
+      - "8001:8000"
+    depends_on:
+      - postgres
+
+  user-service:
+    build:
+      context: ./services/user-service
+    container_name: ai-incident-user-service
+    ports:
+      - "8002:8000"
+    depends_on:
+      - postgres
 
 volumes:
   postgres_data:
