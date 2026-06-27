@@ -10,4 +10,4 @@ venv/
 
 # IDE
 .vscode/
-.idea/
+.idea/.env
