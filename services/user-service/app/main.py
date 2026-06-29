@@ -1,6 +1,6 @@
 import os
 from datetime import datetime, UTC
-from typing import Dict
+from typing import Optional
 from uuid import uuid4
 
 import psycopg
@@ -15,24 +15,21 @@ DATABASE_URL = os.getenv(
 
 
 app = FastAPI(
-    title="Order Service",
-    description="Handles order creation and order lookup.",
+    title="User Service",
+    description="Handles user creation and user lookup.",
     version="0.1.0",
 )
 
 
-class OrderCreate(BaseModel):
-    user_id: str
-    item_id: str
-    quantity: int
+class UserCreate(BaseModel):
+    name: str
+    email: str
 
 
-class OrderResponse(BaseModel):
-    order_id: str
+class UserResponse(BaseModel):
     user_id: str
-    item_id: str
-    quantity: int
-    status: str
+    name: str
+    email: str
     created_at: str
 
 
@@ -46,12 +43,10 @@ def startup():
         with conn.cursor() as cur:
             cur.execute(
                 """
-                CREATE TABLE IF NOT EXISTS orders (
-                    order_id TEXT PRIMARY KEY,
-                    user_id TEXT NOT NULL,
-                    item_id TEXT NOT NULL,
-                    quantity INTEGER NOT NULL,
-                    status TEXT NOT NULL,
+                CREATE TABLE IF NOT EXISTS users (
+                    user_id TEXT PRIMARY KEY,
+                    name TEXT NOT NULL,
+                    email TEXT NOT NULL,
                     created_at TIMESTAMPTZ NOT NULL
                 );
                 """
@@ -61,70 +56,55 @@ def startup():
 @app.get("/health")
 def health_check():
     return {
-        "service": "order-service",
+        "service": "user-service",
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
-@app.post("/orders", response_model=OrderResponse)
-def create_order(order: OrderCreate):
-    if order.quantity <= 0:
-        raise HTTPException(status_code=400, detail="Quantity must be positive")
-
-    order_id = str(uuid4())
-    status = "created"
+@app.post("/users", response_model=UserResponse)
+def create_user(user: UserCreate):
+    user_id = str(uuid4())
     created_at = datetime.now(UTC)
 
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                INSERT INTO orders (order_id, user_id, item_id, quantity, status, created_at)
-                VALUES (%s, %s, %s, %s, %s, %s);
+                INSERT INTO users (user_id, name, email, created_at)
+                VALUES (%s, %s, %s, %s);
                 """,
-                (
-                    order_id,
-                    order.user_id,
-                    order.item_id,
-                    order.quantity,
-                    status,
-                    created_at,
-                ),
+                (user_id, user.name, user.email, created_at),
             )
 
-    return OrderResponse(
-        order_id=order_id,
-        user_id=order.user_id,
-        item_id=order.item_id,
-        quantity=order.quantity,
-        status=status,
+    return UserResponse(
+        user_id=user_id,
+        name=user.name,
+        email=user.email,
         created_at=created_at.isoformat(),
     )
 
 
-@app.get("/orders/{order_id}", response_model=OrderResponse)
-def get_order(order_id: str):
+@app.get("/users/{user_id}", response_model=UserResponse)
+def get_user(user_id: str):
     with get_connection() as conn:
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT order_id, user_id, item_id, quantity, status, created_at
-                FROM orders
-                WHERE order_id = %s;
+                SELECT user_id, name, email, created_at
+                FROM users
+                WHERE user_id = %s;
                 """,
-                (order_id,),
+                (user_id,),
             )
             row = cur.fetchone()
 
     if row is None:
-        raise HTTPException(status_code=404, detail="Order not found")
+        raise HTTPException(status_code=404, detail="User not found")
 
-    return OrderResponse(
-        order_id=row[0],
-        user_id=row[1],
-        item_id=row[2],
-        quantity=row[3],
-        status=row[4],
-        created_at=row[5].isoformat(),
+    return UserResponse(
+        user_id=row[0],
+        name=row[1],
+        email=row[2],
+        created_at=row[3].isoformat(),
     )
