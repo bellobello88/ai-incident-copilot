@@ -95,6 +95,8 @@ services:
       PROMETHEUS_URL: http://prometheus:9090
       ERROR_COUNT_THRESHOLD: 1
       LATENCY_SECONDS_THRESHOLD: 1.0
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.5}
     depends_on:
       - prometheus
   incident-dashboard:
