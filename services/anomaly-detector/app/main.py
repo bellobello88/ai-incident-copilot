@@ -8,6 +8,7 @@ from fastapi import FastAPI, HTTPException
 from openai import OpenAI
 from pydantic import BaseModel
 from uuid import uuid4
+from app.tracing_config import setup_tracing
 
 import psycopg
 from psycopg.types.json import Jsonb
@@ -31,6 +32,7 @@ app = FastAPI(
     description="Detects service anomalies using Prometheus metrics and generates incident reports.",
     version="0.1.0",
 )
+setup_tracing(app, "anomaly-detector")
 
 
 class Incident(BaseModel):

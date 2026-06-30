@@ -7,6 +7,7 @@ from typing import Dict, List
 import httpx
 from fastapi import FastAPI
 from pydantic import BaseModel
+from app.tracing_config import setup_tracing
 
 
 ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://localhost:8001")
@@ -26,6 +27,7 @@ app = FastAPI(
     description="Generates demo traffic for AI Incident Copilot.",
     version="0.1.0",
 )
+setup_tracing(app, "traffic-generator")
 
 
 class TrafficResult(BaseModel):

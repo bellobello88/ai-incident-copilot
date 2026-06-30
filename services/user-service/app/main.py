@@ -11,7 +11,7 @@ from pydantic import BaseModel
 import logging
 import time
 import uuid
-
+from app.tracing_config import setup_tracing
 from app.metrics_config import setup_metrics
 
 
@@ -26,6 +26,7 @@ app = FastAPI(
     description="Handles user creation and user lookup.",
     version="0.1.0",
 )
+setup_tracing(app, "user-service")
 
 setup_logging("user-service")
 logger = logging.getLogger(__name__)

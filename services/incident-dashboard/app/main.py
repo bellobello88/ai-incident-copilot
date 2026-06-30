@@ -57,7 +57,7 @@ def trigger_slow(service_name: str, delay_seconds: float):
 st.title(" AI Incident Copilot")
 st.caption("Observability dashboard for detecting incidents, summarizing root-cause hypotheses, and recommending actions.")
 
-col1, col2, col3 = st.columns(3)
+col1, col2, col3, col4 = st.columns(4)
 
 with col1:
     if st.button("Refresh Incident Report"):
@@ -68,6 +68,9 @@ with col2:
 
 with col3:
     st.link_button("Open Grafana", "http://localhost:3000")
+
+with col4:
+    st.link_button("Open Jaeger", "http://localhost:16686")
 
 
 st.divider()

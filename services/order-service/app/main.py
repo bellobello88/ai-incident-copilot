@@ -11,8 +11,9 @@ from pydantic import BaseModel
 import logging
 import time
 import uuid
-
+from app.tracing_config import setup_tracing
 from app.metrics_config import setup_metrics
+
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -28,6 +29,7 @@ app = FastAPI(
     description="Handles order creation and order lookup.",
     version="0.1.0",
 )
+setup_tracing(app, "order-service")
 setup_logging("order-service")
 logger = logging.getLogger(__name__)
 
