@@ -178,6 +178,43 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+@app.get("/simulate/error")
+def simulate_error():
+    logger.error(
+        "simulated failure triggered",
+        extra={
+            "error_type": "SimulatedError",
+        },
+    )
+
+    raise HTTPException(
+        status_code=500,
+        detail="Simulated internal server error",
+    )
+
+
+@app.get("/simulate/slow")
+def simulate_slow(delay_seconds: float = 2.0):
+    if delay_seconds < 0:
+        raise HTTPException(status_code=400, detail="delay_seconds must be non-negative")
+
+    if delay_seconds > 10:
+        raise HTTPException(status_code=400, detail="delay_seconds cannot exceed 10")
+
+    logger.warning(
+        "simulated slow request triggered",
+        extra={
+            "duration_ms": delay_seconds * 1000,
+        },
+    )
+
+    time.sleep(delay_seconds)
+
+    return {
+        "service": "simulator",
+        "status": "slow request completed",
+        "delay_seconds": delay_seconds,
+    }
 
 
 @app.post("/orders", response_model=OrderResponse)

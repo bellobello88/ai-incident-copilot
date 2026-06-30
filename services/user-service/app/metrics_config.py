@@ -19,8 +19,15 @@ HTTP_REQUEST_DURATION_SECONDS = Histogram(
 HTTP_REQUEST_ERRORS_TOTAL = Counter(
     "http_request_errors_total",
     "Total number of HTTP request errors",
-    ["service", "method", "path"],
+    ["service", "method", "path", "status_code"],
 )
+
+
+def get_route_path(request):
+    route = request.scope.get("route")
+    if route is not None:
+        return getattr(route, "path", request.url.path)
+    return request.url.path
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
@@ -29,9 +36,9 @@ class MetricsMiddleware(BaseHTTPMiddleware):
         self.service_name = service_name
 
     async def dispatch(self, request, call_next):
-        path = request.url.path
+        raw_path = request.url.path
 
-        if path == "/metrics":
+        if raw_path.startswith("/metrics"):
             return await call_next(request)
 
         method = request.method
@@ -44,15 +51,12 @@ class MetricsMiddleware(BaseHTTPMiddleware):
             return response
 
         except Exception:
-            HTTP_REQUEST_ERRORS_TOTAL.labels(
-                service=self.service_name,
-                method=method,
-                path=path,
-            ).inc()
+            status_code = 500
             raise
 
         finally:
             duration = time.perf_counter() - start_time
+            path = get_route_path(request)
 
             HTTP_REQUESTS_TOTAL.labels(
                 service=self.service_name,
@@ -66,6 +70,14 @@ class MetricsMiddleware(BaseHTTPMiddleware):
                 method=method,
                 path=path,
             ).observe(duration)
+
+            if status_code >= 400:
+                HTTP_REQUEST_ERRORS_TOTAL.labels(
+                    service=self.service_name,
+                    method=method,
+                    path=path,
+                    status_code=str(status_code),
+                ).inc()
 
 
 def setup_metrics(app, service_name: str):
