@@ -1,0 +1,34 @@
+.PHONY: up down build logs ps smoke demo report llm-report save-report clean
+
+up:
+	docker compose up -d --build
+
+down:
+	docker compose down
+
+build:
+	docker compose build
+
+logs:
+	docker compose logs -f
+
+ps:
+	docker compose ps
+
+smoke:
+	bash scripts/smoke_test.sh
+
+demo:
+	bash scripts/demo_incident.sh
+
+report:
+	curl -s http://localhost:8004/report | python3 -m json.tool
+
+llm-report:
+	curl -s http://localhost:8004/report/llm | python3 -m json.tool
+
+save-report:
+	curl -s -X POST http://localhost:8004/report/llm/save | python3 -m json.tool
+
+clean:
+	docker compose down -v
