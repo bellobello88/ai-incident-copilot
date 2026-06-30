@@ -12,6 +12,7 @@ import logging
 import time
 import uuid
 
+from app.metrics_config import setup_metrics
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -29,6 +30,8 @@ app = FastAPI(
 )
 setup_logging("order-service")
 logger = logging.getLogger(__name__)
+
+setup_metrics(app, "order-service")
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
