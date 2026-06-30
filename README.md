@@ -10,18 +10,14 @@ The project is designed as a portfolio-ready backend/platform engineering projec
 
 * [Overview](#overview)
 * [Why This Project](#why-this-project)
-* [Architecture](#architecture)
 * [Tech Stack](#tech-stack)
 * [System Components](#system-components)
 * [Features](#features)
 * [Observability Pipeline](#observability-pipeline)
 * [Incident Detection Flow](#incident-detection-flow)
-* [Dashboard Demo](#dashboard-demo)
-* [Quick Start](#quick-start)
 * [Environment Variables](#environment-variables)
 * [Main URLs](#main-urls)
 * [Useful Commands](#useful-commands)
-* [Testing and CI](#testing-and-ci)
 * [Project Structure](#project-structure)
 
 
@@ -82,51 +78,7 @@ In real engineering teams, incident response often requires manually checking:
 
 AI Incident Copilot explores how an incident assistant can help engineers move faster by automatically collecting signals, detecting anomalies, summarizing likely causes, recommending next steps, and saving incident snapshots for later review.
 
----
 
-## Architecture
-
-```mermaid
-flowchart TD
-    Client[User / Demo Script / Streamlit UI] --> TG[Traffic Generator]
-
-    TG --> OS[Order Service]
-    TG --> US[User Service]
-    TG --> IS[Inventory Service]
-
-    OS --> US
-    OS --> IS
-
-    OS --> DB[(PostgreSQL)]
-    US --> DB
-    IS --> DB
-    AD[Anomaly Detector] --> DB
-
-    OS --> Metrics[/Prometheus Metrics/]
-    US --> Metrics
-    IS --> Metrics
-    TG --> Metrics
-
-    Metrics --> Prometheus[Prometheus]
-    Prometheus --> Grafana[Grafana Dashboard]
-    Prometheus --> AD
-
-    OS --> Traces[OpenTelemetry Traces]
-    US --> Traces
-    IS --> Traces
-    TG --> Traces
-    AD --> Traces
-
-    Traces --> Jaeger[Jaeger UI]
-
-    AD --> Report[Incident Report API]
-    Report --> Dashboard[Streamlit Incident Dashboard]
-    Report --> History[(Incident History)]
-
-    AD --> LLM[Optional LLM Analysis]
-```
-
----
 
 ## Request Flow Example
 
