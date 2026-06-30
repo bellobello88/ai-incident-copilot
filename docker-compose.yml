@@ -70,7 +70,22 @@ services:
       - order-service
       - user-service
       - inventory-service
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ai-incident-grafana
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
+    depends_on:
+      - prometheus
 
 volumes:
   postgres_data:
   prometheus_data:
+  grafana_data:
