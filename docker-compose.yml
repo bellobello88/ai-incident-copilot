@@ -93,12 +93,17 @@ services:
       - "8004:8000"
     environment:
       PROMETHEUS_URL: http://prometheus:9090
+      DATABASE_URL: postgresql://incident_user:incident_password@postgres:5432/incident_db
       ERROR_COUNT_THRESHOLD: 1
       LATENCY_SECONDS_THRESHOLD: 1.0
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-5.5}
     depends_on:
-      - prometheus
+      postgres:
+        condition: service_healthy
+      prometheus:
+        condition: service_started
+
   incident-dashboard:
     build:
       context: ./services/incident-dashboard

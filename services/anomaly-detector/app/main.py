@@ -7,9 +7,17 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from openai import OpenAI
 from pydantic import BaseModel
+from uuid import uuid4
+
+import psycopg
+from psycopg.types.json import Jsonb
 
 
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://incident_user:incident_password@localhost:5432/incident_db",
+)
 
 ERROR_COUNT_THRESHOLD = float(os.getenv("ERROR_COUNT_THRESHOLD", "1"))
 LATENCY_SECONDS_THRESHOLD = float(os.getenv("LATENCY_SECONDS_THRESHOLD", "1.0"))
@@ -52,6 +60,31 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+def get_connection():
+    return psycopg.connect(DATABASE_URL)
+
+
+@app.on_event("startup")
+def startup():
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                CREATE TABLE IF NOT EXISTS incident_report_snapshots (
+                    report_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    severity TEXT NOT NULL,
+                    incident_count INTEGER NOT NULL,
+                    summary TEXT NOT NULL,
+                    report_json JSONB NOT NULL,
+                    llm_enabled BOOLEAN NOT NULL,
+                    llm_model TEXT,
+                    llm_analysis TEXT,
+                    llm_json JSONB,
+                    created_at TIMESTAMPTZ NOT NULL
+                );
+                """
+            )
 
 
 async def query_prometheus(promql: str) -> List[Dict[str, Any]]:
@@ -245,6 +278,83 @@ def build_report(incidents: List[Incident]) -> IncidentReport:
         recommended_actions=generate_recommended_actions(incidents),
         incidents=incidents,
     )
+def get_highest_severity(report: IncidentReport) -> str:
+    severities = [incident.severity for incident in report.incidents]
+
+    if "critical" in severities:
+        return "critical"
+
+    if "warning" in severities:
+        return "warning"
+
+    return "normal"
+
+
+def build_llm_response(report: IncidentReport) -> Dict[str, Any]:
+    llm_analysis = generate_llm_analysis(report)
+
+    return {
+        "service": "anomaly-detector",
+        "llm_enabled": bool(OPENAI_API_KEY),
+        "llm_model": OPENAI_MODEL if OPENAI_API_KEY else None,
+        "llm_analysis": llm_analysis,
+        "base_report": report.model_dump(mode="json"),
+    }
+
+
+def save_report_snapshot(
+    report: IncidentReport,
+    llm_response: Dict[str, Any] | None = None,
+) -> str:
+    report_id = str(uuid4())
+    created_at = datetime.now(UTC)
+
+    llm_enabled = False
+    llm_model = None
+    llm_analysis = None
+    llm_json = None
+
+    if llm_response is not None:
+        llm_enabled = bool(llm_response.get("llm_enabled"))
+        llm_model = llm_response.get("llm_model")
+        llm_analysis = llm_response.get("llm_analysis")
+        llm_json = Jsonb(llm_response)
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO incident_report_snapshots (
+                    report_id,
+                    status,
+                    severity,
+                    incident_count,
+                    summary,
+                    report_json,
+                    llm_enabled,
+                    llm_model,
+                    llm_analysis,
+                    llm_json,
+                    created_at
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s);
+                """,
+                (
+                    report_id,
+                    report.status,
+                    get_highest_severity(report),
+                    report.incident_count,
+                    report.summary,
+                    Jsonb(report.model_dump(mode="json")),
+                    llm_enabled,
+                    llm_model,
+                    llm_analysis,
+                    llm_json,
+                    created_at,
+                ),
+            )
+
+    return report_id
 
 
 def generate_llm_analysis(report: IncidentReport) -> str:
@@ -321,12 +431,127 @@ async def generate_llm_incident_report():
     incidents = await collect_incidents()
     report = build_report(incidents)
 
-    llm_analysis = generate_llm_analysis(report)
+    return build_llm_response(report)
+@app.post("/report/save")
+async def save_current_report():
+    incidents = await collect_incidents()
+    report = build_report(incidents)
+
+    report_id = save_report_snapshot(report)
+
+    return {
+        "saved": True,
+        "report_id": report_id,
+        "status": report.status,
+        "incident_count": report.incident_count,
+        "summary": report.summary,
+    }
+
+
+@app.post("/report/llm/save")
+async def save_current_llm_report():
+    incidents = await collect_incidents()
+    report = build_report(incidents)
+    llm_response = build_llm_response(report)
+
+    report_id = save_report_snapshot(report, llm_response)
+
+    return {
+        "saved": True,
+        "report_id": report_id,
+        "llm_enabled": llm_response.get("llm_enabled"),
+        "status": report.status,
+        "incident_count": report.incident_count,
+        "summary": report.summary,
+    }
+
+
+@app.get("/history")
+def get_incident_history(limit: int = 20):
+    if limit <= 0:
+        raise HTTPException(status_code=400, detail="limit must be positive")
+
+    if limit > 100:
+        raise HTTPException(status_code=400, detail="limit cannot exceed 100")
+
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    report_id,
+                    status,
+                    severity,
+                    incident_count,
+                    summary,
+                    llm_enabled,
+                    llm_model,
+                    created_at
+                FROM incident_report_snapshots
+                ORDER BY created_at DESC
+                LIMIT %s;
+                """,
+                (limit,),
+            )
+            rows = cur.fetchall()
 
     return {
         "service": "anomaly-detector",
-        "llm_enabled": bool(OPENAI_API_KEY),
-        "llm_model": OPENAI_MODEL if OPENAI_API_KEY else None,
-        "llm_analysis": llm_analysis,
-        "base_report": report,
+        "count": len(rows),
+        "reports": [
+            {
+                "report_id": row[0],
+                "status": row[1],
+                "severity": row[2],
+                "incident_count": row[3],
+                "summary": row[4],
+                "llm_enabled": row[5],
+                "llm_model": row[6],
+                "created_at": row[7].isoformat(),
+            }
+            for row in rows
+        ],
+    }
+
+
+@app.get("/history/{report_id}")
+def get_incident_history_detail(report_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    report_id,
+                    status,
+                    severity,
+                    incident_count,
+                    summary,
+                    report_json,
+                    llm_enabled,
+                    llm_model,
+                    llm_analysis,
+                    llm_json,
+                    created_at
+                FROM incident_report_snapshots
+                WHERE report_id = %s;
+                """,
+                (report_id,),
+            )
+            row = cur.fetchone()
+
+    if row is None:
+        raise HTTPException(status_code=404, detail="Incident report not found")
+
+    return {
+        "report_id": row[0],
+        "status": row[1],
+        "severity": row[2],
+        "incident_count": row[3],
+        "summary": row[4],
+        "report": row[5],
+        "llm_enabled": row[6],
+        "llm_model": row[7],
+        "llm_analysis": row[8],
+        "llm_response": row[9],
+        "created_at": row[10].isoformat(),
     }
