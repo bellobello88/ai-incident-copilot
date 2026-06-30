@@ -1,0 +1,34 @@
+groups:
+  - name: ai-incident-copilot-alerts
+    rules:
+      - alert: HighErrorCount
+        expr: sum by (service) (increase(http_request_errors_total[2m])) >= 1
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error count detected on {{ $labels.service }}"
+          description: "{{ $labels.service }} has elevated HTTP errors in the last 2 minutes."
+
+      - alert: HighLatency
+        expr: |
+          (
+            sum by (service) (rate(http_request_duration_seconds_sum[2m]))
+            /
+            sum by (service) (rate(http_request_duration_seconds_count[2m]))
+          ) > 1
+        for: 10s
+        labels:
+          severity: warning
+        annotations:
+          summary: "High latency detected on {{ $labels.service }}"
+          description: "{{ $labels.service }} average request latency is above 1 second."
+
+      - alert: ServiceDown
+        expr: up{job=~"order-service|user-service|inventory-service"} == 0
+        for: 15s
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service target is down"
+          description: "Prometheus target {{ $labels.job }} is down."

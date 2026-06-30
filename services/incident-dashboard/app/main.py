@@ -60,7 +60,7 @@ st.caption(
     "Observability dashboard for detecting incidents, summarizing root-cause hypotheses, and recommending actions."
 )
 
-col1, col2, col3, col4 = st.columns(4)
+col1, col2, col3, col4, col5 = st.columns(5)
 
 with col1:
     if st.button("Refresh Incident Report"):
@@ -75,6 +75,8 @@ with col3:
 with col4:
     st.link_button("Open Jaeger", "http://localhost:16686")
 
+with col5:
+    st.link_button("Open Alertmanager", "http://localhost:9093")
 
 st.divider()
 

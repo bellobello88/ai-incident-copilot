@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps smoke test lint format check demo report llm-report save-report clean doctor
+.PHONY: up down build logs ps smoke test lint format check demo report llm-report save-report clean doctor alerts
 
 doctor:
 	docker compose config
@@ -55,5 +55,9 @@ lint:
 format:
 	python3 -m ruff check services tests --fix
 	python3 -m ruff format services tests
+
+
+alerts:
+	curl -s http://localhost:9090/api/v1/alerts | python3 -m json.tool
 
 check: lint test
