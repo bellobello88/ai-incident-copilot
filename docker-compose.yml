@@ -15,6 +15,7 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    restart: unless-stopped
 
   order-service:
     build:
@@ -37,6 +38,13 @@ services:
         condition: service_started
       jaeger:
         condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "app/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   user-service:
     build:
@@ -51,6 +59,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "app/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   inventory-service:
     build:
@@ -68,6 +83,13 @@ services:
         condition: service_healthy
       jaeger:
         condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "app/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   prometheus:
     image: prom/prometheus:latest
@@ -95,6 +117,7 @@ services:
       - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards
     depends_on:
       - prometheus
+    restart: unless-stopped
 
   anomaly-detector:
     build:
@@ -118,6 +141,13 @@ services:
         condition: service_started
       jaeger:
         condition: service_started
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "app/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
   incident-dashboard:
     build:
@@ -153,6 +183,13 @@ services:
       - order-service
       - user-service
       - inventory-service
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "app/healthcheck.py"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
       
 
   jaeger:
@@ -163,6 +200,7 @@ services:
       - "4318:4318"
     environment:
       COLLECTOR_OTLP_ENABLED: "true"
+    restart: unless-stopped
 
 volumes:
   postgres_data:
