@@ -8,6 +8,11 @@ ANOMALY_DETECTOR_URL = os.getenv(
     "http://localhost:8004",
 )
 
+TRAFFIC_GENERATOR_URL = os.getenv(
+    "TRAFFIC_GENERATOR_URL",
+    "http://localhost:8005",
+)
+
 SERVICE_URLS = {
     "order-service": os.getenv("ORDER_SERVICE_URL", "http://localhost:8001"),
     "user-service": os.getenv("USER_SERVICE_URL", "http://localhost:8002"),
@@ -141,6 +146,45 @@ else:
 st.divider()
 
 st.subheader("Failure Injection Lab")
+
+st.divider()
+
+st.subheader("Demo Traffic Generator")
+st.caption("Generate traffic automatically for Prometheus, Grafana, and incident detection demos.")
+
+demo_col1, demo_col2, demo_col3, demo_col4 = st.columns(4)
+
+with demo_col1:
+    if st.button("Generate Normal Traffic"):
+        try:
+            result = post_json(f"{TRAFFIC_GENERATOR_URL}/generate/normal")
+            st.success(f"Generated {result.get('total_requests')} normal requests.")
+        except requests.RequestException as exc:
+            st.error(f"Could not generate normal traffic: {exc}")
+
+with demo_col2:
+    if st.button("Generate Error Incident"):
+        try:
+            result = post_json(f"{TRAFFIC_GENERATOR_URL}/generate/errors?service_name=order-service&count=5")
+            st.warning(f"Generated {result.get('total_requests')} error requests.")
+        except requests.RequestException as exc:
+            st.error(f"Could not generate error traffic: {exc}")
+
+with demo_col3:
+    if st.button("Generate Slow Incident"):
+        try:
+            result = post_json(f"{TRAFFIC_GENERATOR_URL}/generate/slow?service_name=user-service&count=3&delay_seconds=3")
+            st.warning(f"Generated {result.get('total_requests')} slow requests.")
+        except requests.RequestException as exc:
+            st.error(f"Could not generate slow traffic: {exc}")
+
+with demo_col4:
+    if st.button("Generate Mixed Incident"):
+        try:
+            result = post_json(f"{TRAFFIC_GENERATOR_URL}/generate/mixed")
+            st.error(f"Generated {result.get('total_requests')} mixed demo requests.")
+        except requests.RequestException as exc:
+            st.error(f"Could not generate mixed traffic: {exc}")
 st.caption("Use these buttons to intentionally create errors or latency, then refresh the report after 5–10 seconds.")
 
 service_name = st.selectbox(
@@ -190,6 +234,6 @@ try:
                 st.write(f"**Created At:** {item.get('created_at')}")
 except requests.RequestException as exc:
     st.warning(f"Could not load incident history: {exc}")
-    
+
 st.subheader("Raw Incident Report JSON")
 st.json(llm_response)

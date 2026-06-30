@@ -115,8 +115,24 @@ services:
       ORDER_SERVICE_URL: http://order-service:8000
       USER_SERVICE_URL: http://user-service:8000
       INVENTORY_SERVICE_URL: http://inventory-service:8000
+      TRAFFIC_GENERATOR_URL: http://traffic-generator:8000
     depends_on:
       - anomaly-detector
+      - traffic-generator
+  traffic-generator:
+    build:
+      context: ./services/traffic-generator
+    container_name: ai-incident-traffic-generator
+    ports:
+      - "8005:8000"
+    environment:
+      ORDER_SERVICE_URL: http://order-service:8000
+      USER_SERVICE_URL: http://user-service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
+    depends_on:
+      - order-service
+      - user-service
+      - inventory-service
 
 volumes:
   postgres_data:
