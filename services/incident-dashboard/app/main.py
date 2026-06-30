@@ -1,7 +1,7 @@
 import os
+
 import requests
 import streamlit as st
-
 
 ANOMALY_DETECTOR_URL = os.getenv(
     "ANOMALY_DETECTOR_URL",
@@ -32,6 +32,7 @@ def get_json(url: str):
     response.raise_for_status()
     return response.json()
 
+
 def post_json(url: str):
     response = requests.post(url, timeout=30)
     response.raise_for_status()
@@ -55,7 +56,9 @@ def trigger_slow(service_name: str, delay_seconds: float):
 
 
 st.title(" AI Incident Copilot")
-st.caption("Observability dashboard for detecting incidents, summarizing root-cause hypotheses, and recommending actions.")
+st.caption(
+    "Observability dashboard for detecting incidents, summarizing root-cause hypotheses, and recommending actions."
+)
 
 col1, col2, col3, col4 = st.columns(4)
 
@@ -168,7 +171,9 @@ with demo_col1:
 with demo_col2:
     if st.button("Generate Error Incident"):
         try:
-            result = post_json(f"{TRAFFIC_GENERATOR_URL}/generate/errors?service_name=order-service&count=5")
+            result = post_json(
+                f"{TRAFFIC_GENERATOR_URL}/generate/errors?service_name=order-service&count=5"
+            )
             st.warning(f"Generated {result.get('total_requests')} error requests.")
         except requests.RequestException as exc:
             st.error(f"Could not generate error traffic: {exc}")
@@ -176,7 +181,9 @@ with demo_col2:
 with demo_col3:
     if st.button("Generate Slow Incident"):
         try:
-            result = post_json(f"{TRAFFIC_GENERATOR_URL}/generate/slow?service_name=user-service&count=3&delay_seconds=3")
+            result = post_json(
+                f"{TRAFFIC_GENERATOR_URL}/generate/slow?service_name=user-service&count=3&delay_seconds=3"
+            )
             st.warning(f"Generated {result.get('total_requests')} slow requests.")
         except requests.RequestException as exc:
             st.error(f"Could not generate slow traffic: {exc}")
@@ -188,7 +195,9 @@ with demo_col4:
             st.error(f"Generated {result.get('total_requests')} mixed demo requests.")
         except requests.RequestException as exc:
             st.error(f"Could not generate mixed traffic: {exc}")
-st.caption("Use these buttons to intentionally create errors or latency, then refresh the report after 5–10 seconds.")
+st.caption(
+    "Use these buttons to intentionally create errors or latency, then refresh the report after 5–10 seconds."
+)
 
 service_name = st.selectbox(
     "Choose a service",

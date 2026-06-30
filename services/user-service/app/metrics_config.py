@@ -3,7 +3,6 @@ import time
 from prometheus_client import Counter, Histogram, make_asgi_app
 from starlette.middleware.base import BaseHTTPMiddleware
 
-
 HTTP_REQUESTS_TOTAL = Counter(
     "http_requests_total",
     "Total number of HTTP requests",

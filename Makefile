@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps smoke test demo report llm-report save-report clean doctor
+.PHONY: up down build logs ps smoke test lint format check demo report llm-report save-report clean doctor
 
 doctor:
 	docker compose config
@@ -46,3 +46,14 @@ clean:
 
 test:
 	python3 -m pytest -q
+
+
+lint:
+	python3 -m ruff check services tests
+	python3 -m ruff format --check services tests
+
+format:
+	python3 -m ruff check services tests --fix
+	python3 -m ruff format services tests
+
+check: lint test

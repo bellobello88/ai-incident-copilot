@@ -22,7 +22,7 @@ jobs:
         run: |
           docker --version
           docker compose version
-          
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
@@ -30,6 +30,11 @@ jobs:
 
       - name: Install test dependencies
         run: pip install -r requirements-dev.txt
+
+      - name: Run lint checks
+        run: |
+          python -m ruff check services tests
+          python -m ruff format --check services tests
         
 
       - name: Validate Docker Compose config

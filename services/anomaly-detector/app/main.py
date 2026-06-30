@@ -1,18 +1,17 @@
 import math
 import os
-from datetime import datetime, UTC
-from typing import Any, Dict, List
+from datetime import UTC, datetime
+from typing import Any
+from uuid import uuid4
 
 import httpx
+import psycopg
 from fastapi import FastAPI, HTTPException
 from openai import OpenAI
-from pydantic import BaseModel
-from uuid import uuid4
-from app.tracing_config import setup_tracing
-
-import psycopg
 from psycopg.types.json import Jsonb
+from pydantic import BaseModel
 
+from app.tracing_config import setup_tracing
 
 PROMETHEUS_URL = os.getenv("PROMETHEUS_URL", "http://localhost:9090")
 DATABASE_URL = os.getenv(
@@ -51,8 +50,8 @@ class IncidentReport(BaseModel):
     incident_count: int
     summary: str
     root_cause_hypothesis: str
-    recommended_actions: List[str]
-    incidents: List[Incident]
+    recommended_actions: list[str]
+    incidents: list[Incident]
 
 
 @app.get("/health")
@@ -62,6 +61,8 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
 def get_connection():
     return psycopg.connect(DATABASE_URL)
 
@@ -89,7 +90,7 @@ def startup():
             )
 
 
-async def query_prometheus(promql: str) -> List[Dict[str, Any]]:
+async def query_prometheus(promql: str) -> list[dict[str, Any]]:
     try:
         async with httpx.AsyncClient(timeout=5.0) as client:
             response = await client.get(
@@ -121,7 +122,7 @@ async def query_prometheus(promql: str) -> List[Dict[str, Any]]:
     return data.get("data", {}).get("result", [])
 
 
-def parse_value(result: Dict[str, Any]) -> float:
+def parse_value(result: dict[str, Any]) -> float:
     raw_value = result.get("value", [None, "0"])[1]
 
     try:
@@ -135,8 +136,8 @@ def parse_value(result: Dict[str, Any]) -> float:
     return value
 
 
-async def collect_incidents() -> List[Incident]:
-    incidents: List[Incident] = []
+async def collect_incidents() -> list[Incident]:
+    incidents: list[Incident] = []
 
     error_query = """
     sum by (service) (
@@ -192,7 +193,7 @@ async def collect_incidents() -> List[Incident]:
     return incidents
 
 
-def generate_summary(incidents: List[Incident]) -> str:
+def generate_summary(incidents: list[Incident]) -> str:
     if not incidents:
         return "No active incidents detected. All monitored services appear healthy."
 
@@ -206,7 +207,7 @@ def generate_summary(incidents: List[Incident]) -> str:
     )
 
 
-def generate_root_cause_hypothesis(incidents: List[Incident]) -> str:
+def generate_root_cause_hypothesis(incidents: list[Incident]) -> str:
     if not incidents:
         return "No anomaly pattern is currently present."
 
@@ -242,7 +243,7 @@ def generate_root_cause_hypothesis(incidents: List[Incident]) -> str:
     return "Anomaly detected, but root cause pattern is unclear."
 
 
-def generate_recommended_actions(incidents: List[Incident]) -> List[str]:
+def generate_recommended_actions(incidents: list[Incident]) -> list[str]:
     if not incidents:
         return [
             "Continue monitoring service metrics.",
@@ -269,7 +270,7 @@ def generate_recommended_actions(incidents: List[Incident]) -> List[str]:
     return actions
 
 
-def build_report(incidents: List[Incident]) -> IncidentReport:
+def build_report(incidents: list[Incident]) -> IncidentReport:
     return IncidentReport(
         service="anomaly-detector",
         status="incident_detected" if incidents else "normal",
@@ -280,6 +281,8 @@ def build_report(incidents: List[Incident]) -> IncidentReport:
         recommended_actions=generate_recommended_actions(incidents),
         incidents=incidents,
     )
+
+
 def get_highest_severity(report: IncidentReport) -> str:
     severities = [incident.severity for incident in report.incidents]
 
@@ -292,7 +295,7 @@ def get_highest_severity(report: IncidentReport) -> str:
     return "normal"
 
 
-def build_llm_response(report: IncidentReport) -> Dict[str, Any]:
+def build_llm_response(report: IncidentReport) -> dict[str, Any]:
     llm_analysis = generate_llm_analysis(report)
 
     return {
@@ -306,7 +309,7 @@ def build_llm_response(report: IncidentReport) -> Dict[str, Any]:
 
 def save_report_snapshot(
     report: IncidentReport,
-    llm_response: Dict[str, Any] | None = None,
+    llm_response: dict[str, Any] | None = None,
 ) -> str:
     report_id = str(uuid4())
     created_at = datetime.now(UTC)
@@ -434,6 +437,8 @@ async def generate_llm_incident_report():
     report = build_report(incidents)
 
     return build_llm_response(report)
+
+
 @app.post("/report/save")
 async def save_current_report():
     incidents = await collect_incidents()

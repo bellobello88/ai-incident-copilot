@@ -1,7 +1,7 @@
 import json
 import logging
 import sys
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 
 
 class ServiceNameFilter(logging.Filter):

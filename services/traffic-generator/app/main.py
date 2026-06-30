@@ -1,14 +1,13 @@
 import asyncio
 import os
 import random
-from datetime import datetime, UTC
-from typing import Dict, List
+from datetime import UTC, datetime
 
 import httpx
 from fastapi import FastAPI
 from pydantic import BaseModel
-from app.tracing_config import setup_tracing
 
+from app.tracing_config import setup_tracing
 
 ORDER_SERVICE_URL = os.getenv("ORDER_SERVICE_URL", "http://localhost:8001")
 USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8002")
@@ -35,7 +34,7 @@ class TrafficResult(BaseModel):
     total_requests: int
     successful_requests: int
     failed_requests: int
-    details: List[Dict]
+    details: list[dict]
 
 
 @app.get("/health")
@@ -47,7 +46,7 @@ def health_check():
     }
 
 
-async def send_get(client: httpx.AsyncClient, url: str) -> Dict:
+async def send_get(client: httpx.AsyncClient, url: str) -> dict:
     try:
         response = await client.get(url, timeout=15.0)
 
@@ -66,7 +65,7 @@ async def send_get(client: httpx.AsyncClient, url: str) -> Dict:
         }
 
 
-def summarize(scenario: str, details: List[Dict]) -> TrafficResult:
+def summarize(scenario: str, details: list[dict]) -> TrafficResult:
     successful = sum(1 for item in details if item.get("ok"))
     failed = len(details) - successful
 
@@ -105,12 +104,11 @@ async def generate_errors(service_name: str = "order-service", count: int = 5):
 
 
 @app.post("/generate/slow", response_model=TrafficResult)
-async def generate_slow(service_name: str = "user-service", count: int = 3, delay_seconds: float = 3.0):
+async def generate_slow(
+    service_name: str = "user-service", count: int = 3, delay_seconds: float = 3.0
+):
     service_url = SERVICE_URLS.get(service_name, USER_SERVICE_URL)
-    urls = [
-        f"{service_url}/simulate/slow?delay_seconds={delay_seconds}"
-        for _ in range(count)
-    ]
+    urls = [f"{service_url}/simulate/slow?delay_seconds={delay_seconds}" for _ in range(count)]
 
     async with httpx.AsyncClient() as client:
         details = await asyncio.gather(*[send_get(client, url) for url in urls])

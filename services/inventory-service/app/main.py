@@ -1,19 +1,17 @@
+import logging
 import os
-from datetime import datetime, UTC
+import time
+import uuid
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Request
-from app.logging_config import setup_logging
 from pydantic import BaseModel
 
-import logging
-import time
-import uuid
-from app.tracing_config import setup_tracing
-
+from app.logging_config import setup_logging
 from app.metrics_config import setup_metrics
-
+from app.tracing_config import setup_tracing
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -32,6 +30,7 @@ setup_logging("inventory-service")
 logger = logging.getLogger(__name__)
 
 setup_metrics(app, "inventory-service")
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -118,6 +117,8 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
 @app.get("/simulate/error")
 def simulate_error():
     logger.error(
@@ -156,6 +157,7 @@ def simulate_slow(delay_seconds: float = 2.0):
         "delay_seconds": delay_seconds,
     }
 
+
 @app.post("/items", response_model=ItemResponse)
 def create_item(item: ItemCreate):
     if item.stock < 0:
@@ -177,11 +179,11 @@ def create_item(item: ItemCreate):
                 (item_id, item.name, item.stock, item.price, created_at),
             )
     logger.info(
-    "item created",
-    extra={
-        "item_id": item_id,
-    },
-)
+        "item created",
+        extra={
+            "item_id": item_id,
+        },
+    )
 
     return ItemResponse(
         item_id=item_id,

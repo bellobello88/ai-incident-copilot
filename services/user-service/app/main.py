@@ -1,19 +1,17 @@
+import logging
 import os
-from datetime import datetime, UTC
-from typing import Optional
+import time
+import uuid
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import psycopg
 from fastapi import FastAPI, HTTPException, Request
-from app.logging_config import setup_logging
 from pydantic import BaseModel
 
-import logging
-import time
-import uuid
-from app.tracing_config import setup_tracing
+from app.logging_config import setup_logging
 from app.metrics_config import setup_metrics
-
+from app.tracing_config import setup_tracing
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -32,6 +30,7 @@ setup_logging("user-service")
 logger = logging.getLogger(__name__)
 
 setup_metrics(app, "user-service")
+
 
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
@@ -75,6 +74,7 @@ async def log_requests(request: Request, call_next):
 
         raise
 
+
 class UserCreate(BaseModel):
     name: str
     email: str
@@ -114,6 +114,8 @@ def health_check():
         "status": "ok",
         "timestamp": datetime.now(UTC).isoformat(),
     }
+
+
 @app.get("/simulate/error")
 def simulate_error():
     logger.error(
@@ -168,11 +170,11 @@ def create_user(user: UserCreate):
                 (user_id, user.name, user.email, created_at),
             )
     logger.info(
-    "user created",
-    extra={
-        "user_id": user_id,
-    },
-)
+        "user created",
+        extra={
+            "user_id": user_id,
+        },
+    )
 
     return UserResponse(
         user_id=user_id,
