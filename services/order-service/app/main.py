@@ -1,8 +1,8 @@
 import os
 from datetime import datetime, UTC
-from typing import Dict
 from uuid import uuid4
 
+import httpx
 import psycopg
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -12,6 +12,9 @@ DATABASE_URL = os.getenv(
     "DATABASE_URL",
     "postgresql://incident_user:incident_password@localhost:5432/incident_db",
 )
+
+USER_SERVICE_URL = os.getenv("USER_SERVICE_URL", "http://localhost:8002")
+INVENTORY_SERVICE_URL = os.getenv("INVENTORY_SERVICE_URL", "http://localhost:8003")
 
 
 app = FastAPI(
@@ -38,6 +41,64 @@ class OrderResponse(BaseModel):
 
 def get_connection():
     return psycopg.connect(DATABASE_URL)
+
+
+def validate_user_exists(user_id: str):
+    try:
+        response = httpx.get(
+            f"{USER_SERVICE_URL}/users/{user_id}",
+            timeout=2.0,
+        )
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=503,
+            detail="User service unavailable",
+        )
+
+    if response.status_code == 404:
+        raise HTTPException(
+            status_code=400,
+            detail="User does not exist",
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=503,
+            detail="User service error",
+        )
+
+
+def validate_item_exists(item_id: str, quantity: int):
+    try:
+        response = httpx.get(
+            f"{INVENTORY_SERVICE_URL}/items/{item_id}",
+            timeout=2.0,
+        )
+    except httpx.RequestError:
+        raise HTTPException(
+            status_code=503,
+            detail="Inventory service unavailable",
+        )
+
+    if response.status_code == 404:
+        raise HTTPException(
+            status_code=400,
+            detail="Item does not exist",
+        )
+
+    if response.status_code != 200:
+        raise HTTPException(
+            status_code=503,
+            detail="Inventory service error",
+        )
+
+    item = response.json()
+
+    if item["stock"] < quantity:
+        raise HTTPException(
+            status_code=400,
+            detail="Not enough stock",
+        )
 
 
 @app.on_event("startup")
@@ -71,6 +132,9 @@ def health_check():
 def create_order(order: OrderCreate):
     if order.quantity <= 0:
         raise HTTPException(status_code=400, detail="Quantity must be positive")
+
+    validate_user_exists(order.user_id)
+    validate_item_exists(order.item_id, order.quantity)
 
     order_id = str(uuid4())
     status = "created"

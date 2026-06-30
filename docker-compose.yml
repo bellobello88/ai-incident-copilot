@@ -24,9 +24,15 @@ services:
       - "8001:8000"
     environment:
       DATABASE_URL: postgresql://incident_user:incident_password@postgres:5432/incident_db
+      USER_SERVICE_URL: http://user-service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
     depends_on:
       postgres:
         condition: service_healthy
+      user-service:
+        condition: service_started
+      inventory-service:
+        condition: service_started
 
   user-service:
     build:
@@ -34,6 +40,18 @@ services:
     container_name: ai-incident-user-service
     ports:
       - "8002:8000"
+    environment:
+      DATABASE_URL: postgresql://incident_user:incident_password@postgres:5432/incident_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  inventory-service:
+    build:
+      context: ./services/inventory-service
+    container_name: ai-incident-inventory-service
+    ports:
+      - "8003:8000"
     environment:
       DATABASE_URL: postgresql://incident_user:incident_password@postgres:5432/incident_db
     depends_on:
