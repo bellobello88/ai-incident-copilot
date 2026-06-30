@@ -4,8 +4,13 @@ from uuid import uuid4
 
 import httpx
 import psycopg
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
+from app.logging_config import setup_logging
 from pydantic import BaseModel
+
+import logging
+import time
+import uuid
 
 
 DATABASE_URL = os.getenv(
@@ -22,6 +27,50 @@ app = FastAPI(
     description="Handles order creation and order lookup.",
     version="0.1.0",
 )
+setup_logging("order-service")
+logger = logging.getLogger(__name__)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    request_id = str(uuid.uuid4())
+    start_time = time.perf_counter()
+
+    try:
+        response = await call_next(request)
+        duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+        logger.info(
+            "request completed",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": response.status_code,
+                "duration_ms": duration_ms,
+                "client": request.client.host if request.client else None,
+            },
+        )
+
+        response.headers["X-Request-ID"] = request_id
+        return response
+
+    except Exception as exc:
+        duration_ms = round((time.perf_counter() - start_time) * 1000, 2)
+
+        logger.exception(
+            "request failed",
+            extra={
+                "request_id": request_id,
+                "method": request.method,
+                "path": request.url.path,
+                "status_code": 500,
+                "duration_ms": duration_ms,
+                "client": request.client.host if request.client else None,
+                "error_type": type(exc).__name__,
+            },
+        )
+
+        raise
 
 
 class OrderCreate(BaseModel):
@@ -156,6 +205,14 @@ def create_order(order: OrderCreate):
                     created_at,
                 ),
             )
+    logger.info(
+    "order created",
+    extra={
+        "order_id": order_id,
+        "user_id": order.user_id,
+        "item_id": order.item_id,
+    },
+)
 
     return OrderResponse(
         order_id=order_id,
