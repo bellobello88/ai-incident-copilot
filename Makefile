@@ -1,4 +1,4 @@
-.PHONY: up down build logs ps smoke demo report llm-report save-report clean doctor
+.PHONY: up down build logs ps smoke test demo report llm-report save-report clean doctor
 
 doctor:
 	docker compose config
@@ -43,3 +43,6 @@ save-report:
 
 clean:
 	docker compose down -v
+
+test:
+	python3 -m pytest -q

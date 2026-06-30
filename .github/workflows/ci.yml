@@ -22,6 +22,15 @@ jobs:
         run: |
           docker --version
           docker compose version
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install test dependencies
+        run: pip install -r requirements-dev.txt
+        
 
       - name: Validate Docker Compose config
         run: docker compose config
