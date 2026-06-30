@@ -85,6 +85,32 @@ services:
     depends_on:
       - prometheus
 
+  anomaly-detector:
+    build:
+      context: ./services/anomaly-detector
+    container_name: ai-incident-anomaly-detector
+    ports:
+      - "8004:8000"
+    environment:
+      PROMETHEUS_URL: http://prometheus:9090
+      ERROR_COUNT_THRESHOLD: 1
+      LATENCY_SECONDS_THRESHOLD: 1.0
+    depends_on:
+      - prometheus
+  incident-dashboard:
+    build:
+      context: ./services/incident-dashboard
+    container_name: ai-incident-dashboard
+    ports:
+      - "8501:8501"
+    environment:
+      ANOMALY_DETECTOR_URL: http://anomaly-detector:8000
+      ORDER_SERVICE_URL: http://order-service:8000
+      USER_SERVICE_URL: http://user-service:8000
+      INVENTORY_SERVICE_URL: http://inventory-service:8000
+    depends_on:
+      - anomaly-detector
+
 volumes:
   postgres_data:
   prometheus_data:
